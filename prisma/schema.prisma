@@ -1,0 +1,279 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  POST_SECONDARY_INS
+  HEALTH_PROVIDER
+  ADMIN
+}
+
+enum ClinicStatus{
+  ACTIVE
+  INACTIVE
+  BANNED
+}
+
+enum ALStatus{
+  SENT
+  SELECTED_PROFESSOR
+  SENT_TO_PROFESSOR
+}
+
+enum HPRequestStatus{
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model User {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  email String @unique
+  password String
+  fullName String?
+  studentId String?
+  psEmployeeId String?
+  hcEmployeeId String?
+  collegeName String?
+  isVerified Boolean?  @default(false)
+  verificationToken String?
+  passwordResetToken String? 
+  posswordResetExpiryDate DateTime?
+  provider String?
+  profileImageUrl String?
+  refreshToken String?
+  role Role @default(STUDENT)
+  profile Profile?
+  isBannedByAdmin Boolean? @default(false)
+
+  isPointOfContact Boolean? @default(false)
+  isSuperPS Boolean? @default(false)
+
+  invitedUserId String?
+  profileApproved Boolean?@default(false)
+
+  calendlyUrl String?
+
+  accomodationLettersToStudent AccomodationLetter[]  @relation("accomodationLettersToStudent")
+  accomodationLettersFromPS AccomodationLetter[] @relation("accomodationLettersFromPS")
+
+  messagesFromUser Message[] @relation("messagesFromUser")
+  messagesToUser Message[]  @relation("messagesToUser")
+
+  clientRequestToStudent   HPClients[]  @relation("clientRequestToStudent")
+  clientRequestFromHP   HPClients[] @relation("clientRequestFromHP")
+
+
+  // Institution is optional for HP
+  institution Institution? @relation(fields: [institutionId], references: [id])
+  institutionId String? @db.ObjectId
+
+  notificationReceiver Notification[] @relation("notificationReceiver")
+  notificationSender Notification[] @relation("notificationSender")
+}
+
+model HPClients {
+   id     String @id @default(auto()) @map("_id") @db.ObjectId
+  
+   student User @relation("clientRequestToStudent",fields: [studentId], references: [id])
+   studentId String @db.ObjectId
+    
+   hp User @relation("clientRequestFromHP",fields: [hpId], references: [id])
+   hpId String @db.ObjectId
+  
+   status HPRequestStatus @default(PENDING)
+
+   isDeleted Boolean? @default(false)
+
+   createdAt DateTime? @default(now())
+   updatedAt DateTime? @default(now())
+}
+
+model Document {
+   id     String @id @default(auto()) @map("_id") @db.ObjectId
+   profile   Profile @relation(fields: [profileId], references: [id])
+   profileId String @db.ObjectId
+   submittedFor String? @db.ObjectId
+   submittedStudentName String?
+   submittedStudentEmail String?
+   category String?
+   fileName String?
+   access String?
+   originalFileName String?
+   documentUrl String?
+   keyword String?
+   notes String?
+   target String?
+   createdAt DateTime? @default(now())
+   updatedAt DateTime? @default(now())
+}
+
+model AccomodationLetter {
+   id     String @id @default(auto()) @map("_id") @db.ObjectId
+   postSecondary   User @relation("accomodationLettersToStudent",fields: [postSecondaryId], references: [id]) 
+   postSecondaryId String @db.ObjectId
+
+   student User @relation("accomodationLettersFromPS",fields: [studentId], references: [id])
+   studentId String @db.ObjectId
+  
+   fileName String?
+   originalFileName String?
+   documentUrl String?
+   notes String?
+
+   createdAt DateTime? @default(now())
+   updatedAt DateTime? @default(now())
+
+   status ALStatus @default(SENT)
+  
+   professors Professor[] @relation(fields: [professorId], references: [id])
+   professorId  String[] @db.ObjectId
+}
+
+// type Professor {
+//    name String? 
+//    email String?
+// }
+
+model Message {
+   id     String @id @default(auto()) @map("_id") @db.ObjectId
+   user1   User @relation("messagesFromUser",fields: [user1Id], references: [id]) 
+   user1Id String @db.ObjectId
+
+   user2 User @relation("messagesToUser",fields: [user2Id], references: [id])
+   user2Id String @db.ObjectId
+
+   sentByUserId String?
+   receiverEmail String?
+
+   hasAttachment Boolean?
+  
+   fileName String?
+   originalFileName String?
+   documentUrl String?
+   message String?
+
+   isReadByReceiver Boolean? @default(false)
+
+   isNotificationSent Boolean? @default(false)
+
+   createdAt DateTime? @default(now())
+   updatedAt DateTime? @default(now())
+}
+
+model Profile{
+   id     String @id @default(auto()) @map("_id") @db.ObjectId
+   user   User @relation(fields: [userId], references: [id])
+   userId String @unique @db.ObjectId
+   documents Document[]
+}
+
+enum DoucmentStatus{
+  APPROVED
+  PENDING_APPROVAL
+  REUPLOAD_REQUEST_CV
+  REUPLOAD_REQUEST_CERTIFICATE
+  REUPLOAD_REQUEST_BOTH
+}
+
+
+
+model Address{
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+
+  // profile   Profile @relation(fields: [profileId], references: [id])
+  // profileId String @unique @db.ObjectId
+
+  address String
+  suit String?
+  city String
+  province String
+  postalCode String
+  contactNumber String
+  lattitude String?
+  longitude String?
+  radius String?
+}
+
+model Education{
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+
+  // profile   Profile @relation(fields: [profileId], references: [id])
+  // profileId String @db.ObjectId
+
+  schoolName String
+  yearOfGraduation String
+  course String
+}
+
+model Post {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  title  String
+}
+
+model Institution{
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  name String @unique
+  emailDomain String @unique
+  calendlyUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  isDeleted Boolean @default(false)
+  isActive Boolean @default(true)
+  users User[]
+  professors Professor[]
+}
+
+model Notification{
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+
+  sender   User @relation("notificationSender",fields: [senderId], references: [id])
+  senderId String @db.ObjectId
+  
+  receiver User @relation("notificationReceiver",fields: [receiverId], references: [id])
+  receiverId String @db.ObjectId
+
+  type NotificationType
+
+  subject String
+  message String
+  
+  createdAt DateTime? @default(now())
+  isRead Boolean? @default(false)
+}
+
+model Professor {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  name String? 
+  email String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  institutionId String @db.ObjectId
+ 
+  accomodationLetters AccomodationLetter[] @relation(fields: [accomodationLetterId], references: [id])
+  accomodationLetterId  String[] @db.ObjectId
+
+}
+
+enum NotificationType {
+  AL_RECEIVED
+  S_COMPLETED_PROFILE
+  S_SELECTED_PROF
+  S_RESPONSE_HP_CONN
+  HP_UPLOAD_DOC_FOR_S
+  HP_SENT_CONNET_S
+  HP_DISCONNECT_S
+  S_UPLOAD_DOC_PROFILE
+}
+
